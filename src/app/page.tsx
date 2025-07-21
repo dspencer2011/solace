@@ -1,91 +1,82 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { SearchBar } from "@/components/SearchBar";
+import { AdvocatesTable } from "@/components/AdvocatesTable";
+import { Pagination } from "@/components/Pagination";
+import { useAdvocates } from "@/hooks/useAdvocates";
+import { useSorting } from "@/hooks/useSorting";
+import { usePagination } from "@/hooks/usePagination";
+import { SearchField, SearchFieldOption } from "@/types";
+
 
 export default function Home() {
-  const [advocates, setAdvocates] = useState([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState([]);
+  const { filteredAdvocates, resetFilter, filterAdvocates } = useAdvocates();
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const { 
+    sortedData: sortedAdvocates, 
+    handleSort, 
+    getSortIndicator 
+  } = useSorting(filteredAdvocates, 'lastName');
+  
+  const { 
+    currentItems: currentAdvocates,
+    currentPage,
+    paginate,
+    nextPage,
+    prevPage,
+    setCurrentPage
+  } = usePagination(sortedAdvocates, 10);
 
-  useEffect(() => {
-    console.log("fetching advocates...");
-    fetch("/api/advocates").then((response) => {
-      response.json().then((jsonResponse) => {
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
-      });
-    });
-  }, []);
-
-  const onChange = (e) => {
-    const searchTerm = e.target.value;
-
-    document.getElementById("search-term").innerHTML = searchTerm;
-
-    console.log("filtering advocates...");
-    const filteredAdvocates = advocates.filter((advocate) => {
-      return (
-        advocate.firstName.includes(searchTerm) ||
-        advocate.lastName.includes(searchTerm) ||
-        advocate.city.includes(searchTerm) ||
-        advocate.degree.includes(searchTerm) ||
-        advocate.specialties.includes(searchTerm) ||
-        advocate.yearsOfExperience.includes(searchTerm)
-      );
-    });
-
-    setFilteredAdvocates(filteredAdvocates);
+  const handleSearchSubmit = (term: string, field: SearchField) => {
+    setSearchTerm(term);
+    filterAdvocates(term, field);
+    setCurrentPage(1);
   };
 
-  const onClick = () => {
-    console.log(advocates);
-    setFilteredAdvocates(advocates);
+  const handleResetSearch = () => {
+    setSearchTerm('');
+    resetFilter();
+    setCurrentPage(1);
   };
+
+  const searchFieldOptions: SearchFieldOption[] = [
+    { value: 'all' as SearchField, label: 'All Fields' },
+    { value: 'name' as SearchField, label: 'Name' },
+    { value: 'city' as SearchField, label: 'City' },
+    { value: 'degree' as SearchField, label: 'Degree' },
+    { value: 'specialties' as SearchField, label: 'Specialties' },
+    { value: 'experience' as SearchField, label: 'Experience' },
+    { value: 'phone' as SearchField, label: 'Phone' }
+  ];
 
   return (
     <main style={{ margin: "24px" }}>
-      <h1>Solace Advocates</h1>
-      <br />
-      <br />
-      <div>
-        <p>Search</p>
-        <p>
-          Searching for: <span id="search-term"></span>
-        </p>
-        <input style={{ border: "1px solid black" }} onChange={onChange} />
-        <button onClick={onClick}>Reset Search</button>
+      <h1 className="text-2xl font-bold mb-6">Advocates Directory</h1>
+      
+      <SearchBar 
+        onSubmit={(term: string, field: SearchField) => handleSearchSubmit(term, field)}
+        onReset={handleResetSearch}
+        searchFieldOptions={searchFieldOptions}
+      />
+
+      <Pagination 
+          currentPage={currentPage}
+          totalItems={sortedAdvocates.length}
+          itemsPerPage={10}
+          paginate={paginate}
+          nextPage={nextPage}
+          prevPage={prevPage}
+      />
+      
+      <div className="mt-0">
+        <AdvocatesTable 
+          advocates={currentAdvocates}
+          handleSort={handleSort}
+          getSortIndicator={getSortIndicator}
+        />
       </div>
-      <br />
-      <br />
-      <table>
-        <thead>
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>City</th>
-          <th>Degree</th>
-          <th>Specialties</th>
-          <th>Years of Experience</th>
-          <th>Phone Number</th>
-        </thead>
-        <tbody>
-          {filteredAdvocates.map((advocate) => {
-            return (
-              <tr>
-                <td>{advocate.firstName}</td>
-                <td>{advocate.lastName}</td>
-                <td>{advocate.city}</td>
-                <td>{advocate.degree}</td>
-                <td>
-                  {advocate.specialties.map((s) => (
-                    <div>{s}</div>
-                  ))}
-                </td>
-                <td>{advocate.yearsOfExperience}</td>
-                <td>{advocate.phoneNumber}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </main>
   );
 }
